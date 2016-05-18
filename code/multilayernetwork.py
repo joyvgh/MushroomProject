@@ -105,4 +105,48 @@ def predict_multilayer_network(X, weights, bias, hidden_layer_fn, output_layer_f
     Z = hidden_layer_fn(np.dot(weights[0], X) + bias[0][:, None])
     Y = output_layer_fn(np.dot(weights[1], Z) + bias[1][:, None])
     return Y
-        
+
+def get_confusion_matrix(network_output, desired_output):
+    confusion_matrix = np.zeros([10,10])
+    for i in range(len(network_output)):
+        classification = np.argmax(network_output[i])
+        real_output = np.argmax(desired_output[i])
+        confusion_matrix[real_output][classification] += 1
+    return confusion_matrix
+
+def multinomial_output(X):
+    s = 0
+    for i in range(len(X)):
+        s += np.exp(X[i])
+    for i in range(len(X)):
+        X[i] = np.exp(X[i])/s
+    return X
+
+def update_weights_crossent(x, y, weights, bias, eta):
+
+    (w0, w1) = weights
+    (b0, b1) = bias
+
+    for i in range(x.shape[1]):
+        # Propagate through the network
+        x0 = x[:, [i]]
+        x1 = propagate(x0, w0, b0, logistic)
+        x2 = propagate(x1, w1, b1, multinomial_output)
+
+        # compute weight delta for the second layer
+        d1 = derror(y[:, [i]], x2)
+        dw1 = eta * np.dot(d1, x1.T)
+        db1 = eta * d1.sum(axis=1)
+
+        # compute weight delta for first layer
+        d0 = np.dot(d1.T, w1).T * dlogistic(x1)
+        dw0 = eta * np.dot(d0, x0.T)
+        db0 = eta * d0.sum(axis=1)
+
+        # update weights
+        w0 += dw0
+        w1 += dw1
+
+        # update bias
+        b0 += db0
+        b1 += db1

@@ -34,6 +34,33 @@ def derror(target, y):
     """Derivative of the error function."""
     return target-y
 
+def our_error(target, computed, l, weights):
+    error = error(target, computed) + (l / 2)
+    weight_sum = 0
+    for layer in weights:
+        for weight in layer:
+            i = weight ** 2
+            j = (weight - 1) ** 2
+            k = (weight + 1) ** 2
+            weight_sum = i * j * k
+    weight_sum = weight_sum * (l / 2)
+    error += weight_sum
+    return error
+
+def our_derror(target, computed, weights, l):
+    d_error = derror(target, computed)
+    weight_sum = 0
+    for layer in weights:
+        for weight in layer[0]:
+
+            weight_sum += 6 * weight**5 - 8 * weight**3 + 2 * weight
+    weight_sum = weight_sum * (l / 2)
+
+
+    return np.add(d_error, weight_sum)
+
+
+
 def update_weights(x, y, weights, bias, eta):
     """Update the weights of a 2-layer neural network, given the
         inputs (x), the expected outputs (y), a list of the weights at
@@ -54,7 +81,7 @@ def update_weights(x, y, weights, bias, eta):
         x2 = propagate(x1, w1, b1, logistic)
 
         # compute weight delta for the second layer
-        d1 = derror(y[:, [i]], x2) * dlogistic(x2)
+        d1 = our_derror(y[:, [i]], x2, weights, 0.01) * dlogistic(x2)
         dw1 = eta * np.dot(d1, x1.T)
         db1 = eta * d1.sum(axis=1)
 
@@ -73,7 +100,7 @@ def update_weights(x, y, weights, bias, eta):
 
         
 
-def train_multilayer_network(X, Y, weight_updating_function=update_weights, num_iters=50, num_hidden=3):
+def train_multilayer_network(X, Y, weight_updating_function=update_weights, num_iters=50, num_hidden=12):
     """Function for training a network on input X to produce output
     Y. """
 
@@ -91,7 +118,7 @@ def train_multilayer_network(X, Y, weight_updating_function=update_weights, num_
     bias = (b0, b1)
     
     for i in range(num_iters):
-        print("Iteration:",i)
+        # print("Iteration:",i)
         weight_updating_function(X, Y, weights, bias, eta)
 
     return weights, bias
@@ -107,7 +134,7 @@ def predict_multilayer_network(X, weights, bias, hidden_layer_fn, output_layer_f
     return Y
 
 def get_confusion_matrix(network_output, desired_output):
-    confusion_matrix = np.zeros([10,10])
+    confusion_matrix = np.zeros([3,3])
     for i in range(len(network_output)):
         classification = np.argmax(network_output[i])
         real_output = np.argmax(desired_output[i])

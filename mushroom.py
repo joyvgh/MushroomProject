@@ -93,9 +93,7 @@ def label_features(data_matrix):
 		else:
 			inputs += [0,0,1]
 		X.append(inputs)
-
 	return X, expected_outputs
-	return None
 
 def main():
 	data = load_data() #done

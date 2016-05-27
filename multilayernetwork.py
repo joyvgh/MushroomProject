@@ -51,9 +51,16 @@ def our_error(weights, lambda1, lambda2):
 def our_derror(target, computed, weights, lambda1, lambda2):
     d_error = derror(target, computed)
     weight_sum = 0
-    for layer in weights:
-        for weight in layer[0]:
-            weight_sum += lambda1*weight + lambda2*(weight**2 - 1)*(3*weight**2 - 1)
+    w0 = weights[0]
+    w1 = weights[1]
+    for i in range(len(w0)):
+        for j in range(len(w0[0])):
+            weight_sum += lambda1*w0[0] + lambda2*(w0[0]**2 - 1)*(3*w0[0]**2 - 1)
+
+    for i in range(len(w1)):
+        for j in range(len(w1[0])):
+            weight_sum += lambda1*w1[0] + lambda2*(w1[0]**2 - 1)*(3*w1[0]**2 - 1)
+
     return np.add(d_error, weight_sum)
 
 def update_weights(x, y, weights, bias, eta, T, lambda1, lambda2):
@@ -69,9 +76,6 @@ def update_weights(x, y, weights, bias, eta, T, lambda1, lambda2):
     (w0, w1) = weights
     (b0, b1) = bias
 
-    w0 += lambda1 * w0 + lambda2 * w0 * (w0**2 - 1) * (3 * w0**2 - 1)
-    w1 += lambda1 * w1 + lambda2 * w1 * (w1**2 - 1) * (3 * w1**2 - 1)
-
     err = 0
 
     for i in range(x.shape[1]):
@@ -86,7 +90,7 @@ def update_weights(x, y, weights, bias, eta, T, lambda1, lambda2):
         d1 = derror(y[:, [i]], x2) * dlogistic(x2, T)
 
         a = np.dot(d1, x1.T)
-        b = a + w1*lambda1
+        b = a + w1*lambda1 + -1 * (3 * w1**5 - 4 * w1**3 + w1) * lambda2
 
         dw1 = eta * b
         db1 = eta * d1.sum(axis=1)
@@ -94,7 +98,8 @@ def update_weights(x, y, weights, bias, eta, T, lambda1, lambda2):
         # compute weight delta for first layer
         d0 = np.dot(d1.T, w1).T * dlogistic(x1, T)
         a = np.dot(d0, x0.T)
-        b = a + w0*lambda1
+        b = a + w0*lambda1 + -1 * (3 * w0**5 - 4 * w0**3 + w0) * lambda2
+
         dw0 = eta * b
         db0 = eta * d0.sum(axis=1)
 
@@ -113,7 +118,8 @@ def update_weights(x, y, weights, bias, eta, T, lambda1, lambda2):
 
         
 
-def train_multilayer_network(X, Y, weight_updating_function=update_weights, num_iters=50, num_hidden=12):
+def train_multilayer_network(X, Y, weight_updating_function=update_weights, num_iters=50,
+        num_hidden=5):
     """Function for training a network on input X to produce output
     Y. """
 
@@ -138,6 +144,7 @@ def train_multilayer_network(X, Y, weight_updating_function=update_weights, num_
     cur_error = float('inf')
     error_diff = 1
     reasonable_lambda = True
+    min_error = float('inf')
     
     #First stage of training
     while reasonable_lambda:
@@ -158,14 +165,55 @@ def train_multilayer_network(X, Y, weight_updating_function=update_weights, num_
     #get error back to previous ammount
     min_error = prev_error
     while cur_error > min_error:
-        while error_diff > 0.001:
+        while error_diff > 0.01:
             prev_error = cur_error
             cur_error = weight_updating_function(X, Y, weights, bias, eta, T, lambda1, lambda2)
             error_diff = prev_error - cur_error
         lambda1 /= 2.0
         error_diff = 1
 
+    print("finished second stage")
+
+    #Third step
+    #remove weights |W| < 0.1
+    for i in range(len(w0)):
+        for j in range(len(w0[0])):
+            if abs(w0[i][j]) < 0.1:
+                w0[i][j] = 0
+    for i in range(len(w1[0])):
+        if abs(w1[0][i]) < 0.1:
+            w1[0][i] = 0
+
+    print("finished third stage")
+
+    #Fourth step
+    #get weights near 0, 1, and -1
+    lambda2 = lambda1
+    lambda1 = 0
+    while not weights_trained(weights):
+        while error_diff > 0.001:
+            prev_error = cur_error
+            cur_error = weight_updating_function(X, Y, weights, bias, eta, T, lambda1, lambda2)
+            error_diff = prev_error - cur_error
+        lambda2 *= 10
+        T += 1
+        error_diff = 1
+
     return weights, bias
+
+def weights_trained(weights):
+    w0 = weights[0]
+    w1 = weights[1]
+    for i in range(len(w0)):
+        for j in range(len(w0[0])):
+            if abs(1 - w0[i][j]) > 0.05 and abs(-1 - w0[i][j]) > 0.05 and abs(w0[i][j]) > 0.05:
+                return False
+    for i in range(len(w1)):
+        for j in range(len(w1[0])):
+            if abs(1 - w1[i][j]) > 0.05 and abs(-1 - w1[i][j]) > 0.05 and abs(w1[i][j]) > 0.05:
+                return False
+    return True
+
 
 
 def predict_multilayer_network(X, weights, bias, hidden_layer_fn, output_layer_fn, T):

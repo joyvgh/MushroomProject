@@ -56,11 +56,6 @@ def our_derror(target, computed, weights, lambda1, lambda2):
     for i in range(len(w0)):
         for j in range(len(w0[0])):
             weight_sum += lambda1*w0[0] + lambda2*(w0[0]**2 - 1)*(3*w0[0]**2 - 1)
-
-    for i in range(len(w1)):
-        for j in range(len(w1[0])):
-            weight_sum += lambda1*w1[0] + lambda2*(w1[0]**2 - 1)*(3*w1[0]**2 - 1)
-
     return np.add(d_error, weight_sum)
 
 def update_weights(x, y, weights, bias, eta, T, lambda1, lambda2):
@@ -90,17 +85,18 @@ def update_weights(x, y, weights, bias, eta, T, lambda1, lambda2):
         d1 = derror(y[:, [i]], x2) * dlogistic(x2, T)
 
         a = np.dot(d1, x1.T)
-        b = a + w1*lambda1 + -1 * (3 * w1**5 - 4 * w1**3 + w1) * lambda2
+        b = a + -1*w1*lambda1
 
-        dw1 = eta * b
+
+        dw1 = eta * b #np.dot(d1, x1.T)
         db1 = eta * d1.sum(axis=1)
 
         # compute weight delta for first layer
         d0 = np.dot(d1.T, w1).T * dlogistic(x1, T)
         a = np.dot(d0, x0.T)
-        b = a + w0*lambda1 + -1 * (3 * w0**5 - 4 * w0**3 + w0) * lambda2
+        b = a + -1*w0*lambda1 + -1 * (3 * w0**5 - 4 * w0**3 + w0) * lambda2
 
-        dw0 = eta * b
+        dw0 = eta * b #np.dot(d0, x0.T)
         db0 = eta * d0.sum(axis=1)
 
         # update weights
@@ -111,7 +107,7 @@ def update_weights(x, y, weights, bias, eta, T, lambda1, lambda2):
         b0 += db0
         b1 += db1
 #look here
-        err += our_error(weights, lambda1, lambda2)
+    err += our_error(weights, lambda1, lambda2)
 
 
     return err
@@ -119,7 +115,7 @@ def update_weights(x, y, weights, bias, eta, T, lambda1, lambda2):
         
 
 def train_multilayer_network(X, Y, weight_updating_function=update_weights, num_iters=50,
-        num_hidden=5):
+        num_hidden=1):
     """Function for training a network on input X to produce output
     Y. """
 
@@ -148,31 +144,52 @@ def train_multilayer_network(X, Y, weight_updating_function=update_weights, num_
     
     #First stage of training
     while reasonable_lambda:
-        while error_diff > 0.001:
+        while error_diff > 0.0001:
             prev_error = cur_error
             cur_error = weight_updating_function(X, Y, weights, bias, eta, T, lambda1, lambda2)
             error_diff = prev_error - cur_error
+            #print("Current Error: " + str(cur_error))
+            #print("prev error: " + str(prev_error))
+            #print("weights: " + str(weights))
+            #print("errordiff: " + str(error_diff))
+        cur_error -= our_error(weights, lambda1, lambda2)
         lambda1 *= 10
         T += 1
-        error_diff = 1
+        cur_error += our_error(weights, lambda1, lambda2)
+        #print("lambda1: " + str(lambda1))
+        #print("T: " + str(T))
         # Do one check outside loop to make sure jump is not too high
-        cur_error = weight_updating_function(X, Y, weights, bias, eta, T, lambda1, lambda2)
-        if prev_error*5 <= cur_error:
+        #print("new error: " + str(cur_error))
+        #print("prev_error: " + str(prev_error))
+        if prev_error*5 <= cur_error or lambda1 > 0.1:
             reasonable_lambda = False
+        error_diff = 1
+        prev_error = float('inf')
 
-    print("done with first stage")
+    print("percent correct: " + str(percent_correct(X, Y, weights, bias, T)))
+    print("finished first stage")
+    print("weights: " + str(weights))
+
     #Second stage of training
     #get error back to previous ammount
     min_error = prev_error
-    while cur_error > min_error:
-        while error_diff > 0.01:
+    while cur_error > min_error and lambda1 <= 0.1:
+        #print("min error: " + str(min_error))
+        while error_diff > 0.0001:
             prev_error = cur_error
             cur_error = weight_updating_function(X, Y, weights, bias, eta, T, lambda1, lambda2)
             error_diff = prev_error - cur_error
+            #print("Current Error: " + str(cur_error))
+            #print("weights: " + str(weights))
+            #print("percent correct: " + str(percent_correct(X, Y, weights, bias, T)))
         lambda1 /= 2.0
+        #print("lambda1: " + str(lambda1))
+        #print("T: " + str(T))
         error_diff = 1
 
     print("finished second stage")
+    print("percent correct: " + str(percent_correct(X, Y, weights, bias, T)))
+    print("weights: " + str(weights))
 
     #Third step
     #remove weights |W| < 0.1
@@ -185,21 +202,43 @@ def train_multilayer_network(X, Y, weight_updating_function=update_weights, num_
             w1[0][i] = 0
 
     print("finished third stage")
+    print("percent correct: " + str(percent_correct(X, Y, weights, bias, T)))
+    print("weights: " + str(weights))
 
     #Fourth step
     #get weights near 0, 1, and -1
-    lambda2 = lambda1
+    lambda2 = 0.0001
     lambda1 = 0
     while not weights_trained(weights):
-        while error_diff > 0.001:
+        while error_diff > 0.0001:
             prev_error = cur_error
             cur_error = weight_updating_function(X, Y, weights, bias, eta, T, lambda1, lambda2)
             error_diff = prev_error - cur_error
+            #print("Current Error: " + str(cur_error))
+            #print("percent correct: " + str(percent_correct(X, Y, weights, bias, T)))
+            #print("weights: " + str(weights))
         lambda2 *= 10
         T += 1
+        #print("lambda2: " + str(lambda2))
+        #print("T: " + str(T))
         error_diff = 1
 
+    set_weights(weights)
+    print("percent correct: " + str(percent_correct(X, Y, weights, bias, T)))
+    print("weights: " + str(weights))
+
     return weights, bias
+
+def set_weights(weights):
+    w0 = weights[0]
+    for i in range(len(w0)):
+        for j in range(len(w0[0])):
+            if abs(1 - w0[i][j]) < 0.05:
+                w0[i][j] = 1
+            elif abs(-1 - w0[i][j]) < 0.05:
+                w0[i][j] = -1
+            elif abs(w0[i][j]) < 0.05:
+                w0[i][j] = 0
 
 def weights_trained(weights):
     w0 = weights[0]
@@ -208,13 +247,33 @@ def weights_trained(weights):
         for j in range(len(w0[0])):
             if abs(1 - w0[i][j]) > 0.05 and abs(-1 - w0[i][j]) > 0.05 and abs(w0[i][j]) > 0.05:
                 return False
-    for i in range(len(w1)):
-        for j in range(len(w1[0])):
-            if abs(1 - w1[i][j]) > 0.05 and abs(-1 - w1[i][j]) > 0.05 and abs(w1[i][j]) > 0.05:
-                return False
     return True
 
+def percent_correct(X, expected, weights, bias, T):
 
+    (w0, w1) = weights
+    (b0, b1) = bias
+    output = []
+
+    for i in range(X.shape[1]):
+        x0 = X[:, [i]]
+        x1 = propagate(x0, w0, b0, logistic, T)
+        x2 = propagate(x1, w1, b1, logistic, T)
+        output += [x2]
+
+    return output
+    """
+    count = 0.0
+    correct = 0.0
+    print(Y)
+    for i in range(len(Y[0])):
+        if expected[0][i] == 1 and Y[0][i] >= 1:
+            correct += 1
+        elif expected[0][i] == 0 and Y[0][i] < 1:
+            correct += 1
+        count += 1
+    return float(correct)
+    """
 
 def predict_multilayer_network(X, weights, bias, hidden_layer_fn, output_layer_fn, T):
     """Fully propagate inputs through the entire neural network,
@@ -223,7 +282,13 @@ def predict_multilayer_network(X, weights, bias, hidden_layer_fn, output_layer_f
     
     """
     Z = hidden_layer_fn(np.dot(weights[0], X) + bias[0][:, None], T)
+    print(np.dot(weights[0], X))
+    print(np.dot(weights[0], X)+bias[0][:, None])
+    print(Z)
     Y = output_layer_fn(np.dot(weights[1], Z) + bias[1][:, None], T)
+    print(np.dot(weights[1], Z))
+    print(np.dot(weights[1], Z)+bias[1][:, None])
+    print(Y)
     return Y
 
 def get_confusion_matrix(network_output, desired_output):

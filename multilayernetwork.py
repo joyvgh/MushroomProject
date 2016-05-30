@@ -166,9 +166,9 @@ def train_multilayer_network(X, Y, weight_updating_function=update_weights, num_
         error_diff = 1
         prev_error = float('inf')
 
-    print("percent correct: " + str(percent_correct(X, Y, weights, bias, T)))
-    print("finished first stage")
-    print("weights: " + str(weights))
+    #print("percent correct: " + str(percent_correct(X, Y, weights, bias, T)))
+    #print("finished first stage")
+    #print("weights: " + str(weights))
 
     #Second stage of training
     #get error back to previous ammount
@@ -187,9 +187,9 @@ def train_multilayer_network(X, Y, weight_updating_function=update_weights, num_
         #print("T: " + str(T))
         error_diff = 1
 
-    print("finished second stage")
-    print("percent correct: " + str(percent_correct(X, Y, weights, bias, T)))
-    print("weights: " + str(weights))
+    # print("finished second stage")
+    # print("percent correct: " + str(percent_correct(X, Y, weights, bias, T)))
+    # print("weights: " + str(weights))
 
     #Third step
     #remove weights |W| < 0.1
@@ -201,9 +201,9 @@ def train_multilayer_network(X, Y, weight_updating_function=update_weights, num_
         if abs(w1[0][i]) < 0.1:
             w1[0][i] = 0
 
-    print("finished third stage")
-    print("percent correct: " + str(percent_correct(X, Y, weights, bias, T)))
-    print("weights: " + str(weights))
+    # print("finished third stage")
+    # print("percent correct: " + str(percent_correct(X, Y, weights, bias, T)))
+    # print("weights: " + str(weights))
 
     #Fourth step
     #get weights near 0, 1, and -1
@@ -282,13 +282,9 @@ def predict_multilayer_network(X, weights, bias, hidden_layer_fn, output_layer_f
     
     """
     Z = hidden_layer_fn(np.dot(weights[0], X) + bias[0][:, None], T)
-    print(np.dot(weights[0], X))
-    print(np.dot(weights[0], X)+bias[0][:, None])
-    print(Z)
+
     Y = output_layer_fn(np.dot(weights[1], Z) + bias[1][:, None], T)
-    print(np.dot(weights[1], Z))
-    print(np.dot(weights[1], Z)+bias[1][:, None])
-    print(Y)
+
     return Y
 
 def get_confusion_matrix(network_output, desired_output):

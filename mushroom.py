@@ -2,6 +2,7 @@
 import rule_extraction
 import neural_net
 import multilayernetwork
+import numpy as np
 
 #Global Iris shape values
 X1_MED = (5.5, 6.1)
@@ -109,7 +110,6 @@ def make_feature_table(weights, feature_labels):
     # condense table, again assuming features are in groups of three originally
     new_feature_labels = []
     for i in range(len(table)):
-        '''
         if table[i][0] == table[i][1]:
             table[i] = [table[i][0], table[i][2]]
             new_feature_labels.append(["not-l", "l"])
@@ -120,10 +120,71 @@ def make_feature_table(weights, feature_labels):
             table[i] = [table[i][0], table[i][1]]
             new_feature_labels.append(["not-m", "m"])
         else:
-        '''
-        new_feature_labels.append(["s", "m", "l"])
+            new_feature_labels.append(["s", "m", "l"])
 
     return table, new_feature_labels
+
+def traverse_graph(table, feature_labels):
+    '''
+    Returns a list of rules in the following structure:
+    [[(1, 'm'), (2, 's')], [(3, 'l')]] is equivalent to:
+    (x_1 = m AND x_2 = s) OR (x_3 = large)
+    '''
+    rules = []
+
+    # Used to know when the graph can be pruned / whether a rule exists or not:
+    max_list = [0 for i in range(len(table))]
+    min_list = [0 for i in range(len(table))]
+
+    for i in range(1, len(table)+1):
+        max_index = np.argmax(table[-i])
+        min_index = np.argmin(table[-i])
+        max_list[-i] = table[-i][max_index]
+        min_list[-i] = table[-i][min_index]
+
+    for i in range(2, len(table)+1):
+        max_list[-i] += max_list[-i+1]
+        min_list[-i] += min_list[-i+1]
+
+    graph_helper(table, rules, 0, [], max_list, min_list)
+
+    #prettify rules list
+    for i in range(len(rules)):
+        for j in range(len(rules[i])):
+            row, col = rules[i][j]
+            rules[i][j] = (row, feature_labels[row][col])
+
+    return rules
+
+
+
+def graph_helper(table, rules, value, cur_path, max_list, min_list):
+    row = len(cur_path)
+    print(len(cur_path))
+    #BASE CASES WHEEEEe
+    if len(cur_path) >= len(table):
+        if (value >= 0):
+            #springtermnorules
+            return
+        else:
+            rules.append(cur_path)
+            return
+    else:
+        if (value + max_list[row] < 0):
+            rules.append(cur_path)
+            return
+        elif (value + min_list[row] > 0):
+            return
+        
+    #update value & cur_path
+    for i in range(len(table[row])):
+        new_value = value + table[row][i]
+        cur_copy = cur_path[:]
+        cur_copy.append((row, i))
+        graph_helper(table, rules, new_value, cur_copy, max_list, min_list)
+
+
+
 
 
 def main():

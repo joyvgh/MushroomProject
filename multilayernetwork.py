@@ -1,15 +1,16 @@
 '''
 Module for multiclass classification via multiple outputs
 Module Written by Anna Rafferty
+Addiitons Written by Joy Hill and Valerie Lambert
 '''
+
 import numpy as np
 import math
 
 np.random.seed(123)
 
-
 def logistic(x, T):
-    """Logistic function"""
+    """Logistic function with slope T"""
     return 1 /(1+np.exp(-T*x))
     
 def dlogistic(x, T):
@@ -19,14 +20,14 @@ def dlogistic(x, T):
 
 def propagate(x, w, b, f, T):
     """Propagate the net forward through one level, given the
-        inputs (x), weights (w), bias term (b), and transfer function (f).
+        inputs (x), weights (w), bias term (b), and transfer function (f),
+        and one parameter to transfer function (T).
     """
     return f(np.dot(w, x) + b[:, None], T)
 
 def error(t, y):
     """Computes the squared error between target values (t)
         and computed values (y).
-
         """
     return 0.5 * (t - y) ** 2
     
@@ -35,8 +36,7 @@ def derror(target, y):
     return target-y
 
 def our_error(weights, lambda1, lambda2):
-    err = 0
-
+    """Additional error used by our training algorithm"""
     weight_sum = 0
     for layer in weights:
         for weight in layer[0]:
@@ -44,15 +44,15 @@ def our_error(weights, lambda1, lambda2):
             j = (weight - 1) ** 2
             k = (weight + 1) ** 2
             weight_sum += lambda2 * i * j * k + lambda1 * weight**2
-    err += weight_sum*0.5
+    weight_sum *= 0.5
 
-    return err
+    return weight_sum
 
 def our_derror(target, computed, weights, lambda1, lambda2):
+    """The derivative of the additional error used by our training algorithm"""
     d_error = derror(target, computed)
     weight_sum = 0
     w0 = weights[0]
-    w1 = weights[1]
     for i in range(len(w0)):
         for j in range(len(w0[0])):
             weight_sum += lambda1*w0[0] + lambda2*(w0[0]**2 - 1)*(3*w0[0]**2 - 1)
@@ -65,12 +65,14 @@ def update_weights(x, y, weights, bias, eta, T, lambda1, lambda2):
         a list of the transfer functions for each layer (funcs), and the
         learning rate (eta).
 
-        This updates the weights in `weights` in place.
+        This updates the weights in `weights` in place, and returns the
+        total error of the network
 
         """
     (w0, w1) = weights
     (b0, b1) = bias
 
+    # Total error of the network
     err = 0
 
     for i in range(x.shape[1]):
@@ -79,24 +81,28 @@ def update_weights(x, y, weights, bias, eta, T, lambda1, lambda2):
         x1 = propagate(x0, w0, b0, logistic, T)
         x2 = propagate(x1, w1, b1, logistic, T)
 
+        # Accumulate error for this set of x2
         err += np.sum(error(y[:, [i]], x2))
 
         # compute weight delta for the second layer
         d1 = derror(y[:, [i]], x2) * dlogistic(x2, T)
 
+        # compute additional delta that penalizes large weights when lambda1 > 0
         a = np.dot(d1, x1.T)
         b = a + -1*w1*lambda1
 
-
-        dw1 = eta * b #np.dot(d1, x1.T)
+        dw1 = eta * b
         db1 = eta * d1.sum(axis=1)
 
         # compute weight delta for first layer
         d0 = np.dot(d1.T, w1).T * dlogistic(x1, T)
         a = np.dot(d0, x0.T)
+
+        # Additional delta penalizes large weights when lambda1 > 0
+        # and penalizes non 0/1/-1 values when lambda2 > 0
         b = a + -1*w0*lambda1 + -1 * (3 * w0**5 - 4 * w0**3 + w0) * lambda2
 
-        dw0 = eta * b #np.dot(d0, x0.T)
+        dw0 = eta * b
         db0 = eta * d0.sum(axis=1)
 
         # update weights
@@ -106,9 +112,9 @@ def update_weights(x, y, weights, bias, eta, T, lambda1, lambda2):
         # update bias
         b0 += db0
         b1 += db1
-#look here
-    err += our_error(weights, lambda1, lambda2)
 
+    # Accumulate error for new weights
+    err += our_error(weights, lambda1, lambda2)
 
     return err
 
@@ -117,7 +123,9 @@ def update_weights(x, y, weights, bias, eta, T, lambda1, lambda2):
 def train_multilayer_network(X, Y, weight_updating_function=update_weights, num_iters=50,
         num_hidden=1):
     """Function for training a network on input X to produce output
-    Y. """
+        Y using the algorithm described in notebook. Should produce
+        a network with weights of 0, -1, and 1.
+    """
 
     # learning rate
     eta = 0.01
@@ -136,63 +144,54 @@ def train_multilayer_network(X, Y, weight_updating_function=update_weights, num_
     b1 = np.random.randn(Y.shape[0])
     bias = (b0, b1)
 
+    # Set parameters for contorlling training
     prev_error = float('inf')
     cur_error = float('inf')
     error_diff = 1
     reasonable_lambda = True
     min_error = float('inf')
     
-    #First stage of training
+    # First stage of training
+    # Train network with penalty to large weights
+
     while reasonable_lambda:
+
+        # Train with lambda1 until there is only a small decrease of error
         while error_diff > 0.0001:
             prev_error = cur_error
             cur_error = weight_updating_function(X, Y, weights, bias, eta, T, lambda1, lambda2)
             error_diff = prev_error - cur_error
-            #print("Current Error: " + str(cur_error))
-            #print("prev error: " + str(prev_error))
-            #print("weights: " + str(weights))
-            #print("errordiff: " + str(error_diff))
+
+        # Once training slows, we need to check if changing lambda and T
+        # increases our error by a factor of 5. If so first stage ends.
         cur_error -= our_error(weights, lambda1, lambda2)
         lambda1 *= 10
         T += 1
         cur_error += our_error(weights, lambda1, lambda2)
-        #print("lambda1: " + str(lambda1))
-        #print("T: " + str(T))
-        # Do one check outside loop to make sure jump is not too high
-        #print("new error: " + str(cur_error))
-        #print("prev_error: " + str(prev_error))
         if prev_error*5 <= cur_error or lambda1 > 0.1:
             reasonable_lambda = False
+
+        # Otherwise reset parameter to train with new lambda and T
         error_diff = 1
-        prev_error = float('inf')
 
-    #print("percent correct: " + str(percent_correct(X, Y, weights, bias, T)))
-    #print("finished first stage")
-    #print("weights: " + str(weights))
 
-    #Second stage of training
-    #get error back to previous ammount
+    # Second stage of training
+    # Get error back to previous ammount
+
     min_error = prev_error
     while cur_error > min_error and lambda1 <= 0.1:
-        #print("min error: " + str(min_error))
+        # Train with given lambda until training slows
         while error_diff > 0.0001:
             prev_error = cur_error
             cur_error = weight_updating_function(X, Y, weights, bias, eta, T, lambda1, lambda2)
             error_diff = prev_error - cur_error
-            #print("Current Error: " + str(cur_error))
-            #print("weights: " + str(weights))
-            #print("percent correct: " + str(percent_correct(X, Y, weights, bias, T)))
+        # Cut lambda in half if training slows
         lambda1 /= 2.0
-        #print("lambda1: " + str(lambda1))
-        #print("T: " + str(T))
         error_diff = 1
 
-    # print("finished second stage")
-    # print("percent correct: " + str(percent_correct(X, Y, weights, bias, T)))
-    # print("weights: " + str(weights))
+    # Third stage of training
+    # Remove weights |W| < 0.1
 
-    #Third step
-    #remove weights |W| < 0.1
     for i in range(len(w0)):
         for j in range(len(w0[0])):
             if abs(w0[i][j]) < 0.1:
@@ -201,35 +200,31 @@ def train_multilayer_network(X, Y, weight_updating_function=update_weights, num_
         if abs(w1[0][i]) < 0.1:
             w1[0][i] = 0
 
-    # print("finished third stage")
-    # print("percent correct: " + str(percent_correct(X, Y, weights, bias, T)))
-    # print("weights: " + str(weights))
+    # Fourth stage of training
+    # Train weights to be near 0, 1, and -1
 
-    #Fourth step
-    #get weights near 0, 1, and -1
     lambda2 = 0.0001
     lambda1 = 0
+
+    # Training stops once weights are within 0.05 of 0, 1, and -1
     while not weights_trained(weights):
         while error_diff > 0.0001:
             prev_error = cur_error
             cur_error = weight_updating_function(X, Y, weights, bias, eta, T, lambda1, lambda2)
             error_diff = prev_error - cur_error
-            #print("Current Error: " + str(cur_error))
-            #print("percent correct: " + str(percent_correct(X, Y, weights, bias, T)))
-            #print("weights: " + str(weights))
         lambda2 *= 10
         T += 1
-        #print("lambda2: " + str(lambda2))
-        #print("T: " + str(T))
         error_diff = 1
 
+    # Set weights to be exactly 0, 1, and -1.
     set_weights(weights)
-    print("percent correct: " + str(percent_correct(X, Y, weights, bias, T)))
-    print("weights: " + str(weights))
 
     return weights, bias
 
 def set_weights(weights):
+    """Updates weights such that any weight within 0.05 of 0, 1, and -1
+        is set to be 0, 1, and -1 respectively
+    """
     w0 = weights[0]
     for i in range(len(w0)):
         for j in range(len(w0[0])):
@@ -241,6 +236,7 @@ def set_weights(weights):
                 w0[i][j] = 0
 
 def weights_trained(weights):
+    """Returns True if the weights are within 0.05 of 0, 1, and -1."""
     w0 = weights[0]
     w1 = weights[1]
     for i in range(len(w0)):
@@ -249,32 +245,6 @@ def weights_trained(weights):
                 return False
     return True
 
-def percent_correct(X, expected, weights, bias, T):
-
-    (w0, w1) = weights
-    (b0, b1) = bias
-    output = []
-
-    for i in range(X.shape[1]):
-        x0 = X[:, [i]]
-        x1 = propagate(x0, w0, b0, logistic, T)
-        x2 = propagate(x1, w1, b1, logistic, T)
-        output += [x2]
-
-    return output
-    """
-    count = 0.0
-    correct = 0.0
-    print(Y)
-    for i in range(len(Y[0])):
-        if expected[0][i] == 1 and Y[0][i] >= 1:
-            correct += 1
-        elif expected[0][i] == 0 and Y[0][i] < 1:
-            correct += 1
-        count += 1
-    return float(correct)
-    """
-
 def predict_multilayer_network(X, weights, bias, hidden_layer_fn, output_layer_fn, T):
     """Fully propagate inputs through the entire neural network,
     given the inputs (X), a list of the weights for each level
@@ -282,12 +252,14 @@ def predict_multilayer_network(X, weights, bias, hidden_layer_fn, output_layer_f
     
     """
     Z = hidden_layer_fn(np.dot(weights[0], X) + bias[0][:, None], T)
-
     Y = output_layer_fn(np.dot(weights[1], Z) + bias[1][:, None], T)
 
     return Y
 
 def get_confusion_matrix(network_output, desired_output):
+    """Returns the confusion matrix for 3 outputs given 3 caluculated outputs and 3
+        expected outputs
+    """
     confusion_matrix = np.zeros([3,3])
     for i in range(len(network_output)):
         classification = np.argmax(network_output[i])

@@ -1,6 +1,4 @@
-''' Joy & Valerie Take The Mushroom Algorithm!! '''
-import rule_extraction
-import neural_net
+''' Joy & Valerie Take on the Mushroom Algorithm!! '''
 import multilayernetwork
 import numpy as np
 
@@ -10,10 +8,10 @@ X2_MED = (2.75,3.2)
 X3_MED = (2.0, 4.93)
 X4_MED = (0.6, 1.7)
 
-#Loads the Iris data into a matrix
-#Shape: sepal length, sepal width, petal length, petal width
-#Iris Class: iris-setosa, iris-versicolor, iris-virginica
 def load_data(filename):
+    """Loads the Iris data into a matrix
+        Shape: sepal length, sepal width, petal length, petal width
+        Iris Class: iris-setosa, iris-versicolor, iris-virginica"""
     f = open(filename, 'r')
     data_matrix = []
     for line in f.read().split('\n'):
@@ -53,6 +51,10 @@ def load_data(filename):
     return data_matrix
 
 def label_features(data_matrix):
+    """Given data matrix outputted by load_data, reformat
+        data into the proper inputs and expected outputs for
+        each line of data.
+    """
     expected_outputs = []
     for line in data_matrix:
         if line[4] == 'Iris-setosa':
@@ -97,6 +99,11 @@ def label_features(data_matrix):
     return X, expected_outputs
 
 def make_feature_table(weights, feature_labels):
+    """Create table that holds Delta values to be used by our algorithm.
+        Currently is specific to the Iris dataset. Takes in the weights of
+        the network and the labels for each input to the network. Outputs
+        a 2D list which holds the Delta values for each label for each
+        feature, and a 2D list with the respective labels for those Deltas."""
     table = []
     count = 0
     for i in range(len(feature_labels)):
@@ -104,7 +111,7 @@ def make_feature_table(weights, feature_labels):
         row.append(weights[count] - weights[count+1] - weights[count+2])
         row.append(-1 * weights[count] + weights[count+1] - weights[count+2])
         row.append(-1 * weights[count] - weights[count+1] + weights[count+2])
-        count += 3 #not general :(
+        count += 3
         table.append(row)
     
     # condense table, again assuming features are in groups of three originally
@@ -159,39 +166,37 @@ def traverse_graph(table, feature_labels):
 
 
 def graph_helper(table, rules, value, cur_path, max_list, min_list):
+    """If, given our path, we can create a new rule, add a new rule to
+        rules. Otherwise, recurse on all possible paths from current path
+    """
+    # Get the current row we are looking at
     row = len(cur_path)
-    print(len(cur_path))
-    #BASE CASES WHEEEEe
+
+    # Base Cases
+    # At leaf of tree
     if len(cur_path) >= len(table):
         if (value >= 0):
-            #springtermnorules
             return
         else:
             rules.append(cur_path)
             return
     else:
+        # Can shortcut to making rule and stop searching tree
         if (value + max_list[row] < 0):
             rules.append(cur_path)
             return
+        # Can stop searching tree
         elif (value + min_list[row] > 0):
             return
         
-    #update value & cur_path
+    # Update value and cur_path for each Delta in our current row and
+    # continue searching tree
     for i in range(len(table[row])):
         new_value = value + table[row][i]
         cur_copy = cur_path[:]
         cur_copy.append((row, i))
         graph_helper(table, rules, new_value, cur_copy, max_list, min_list)
 
-
-
-
-
 def main():
-    data = load_data() #done
-    label_features()
-    
-    neural_net.train_all_categories()
-    graph = rule_extraction.create_graph()
-    rules = rule_extraction.get_rules(graph)
-    print(rules)
+    #TODO
+    pass

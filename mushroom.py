@@ -1,6 +1,7 @@
 ''' Joy & Valerie Take on the Mushroom Algorithm!! '''
 import multilayernetwork
 import numpy as np
+import multilayernetwork as mn 
 
 #Global Iris shape values
 X1_MED = (5.5, 6.1)
@@ -53,7 +54,7 @@ def load_data(filename):
 def label_features(data_matrix):
     """Given data matrix outputted by load_data, reformat
         data into the proper inputs and expected outputs for
-        each line of data.
+        each line of data. 
     """
     expected_outputs = []
     for line in data_matrix:
@@ -97,6 +98,28 @@ def label_features(data_matrix):
             inputs += [-1,-1,1]
         X.append(inputs)
     return X, expected_outputs
+
+def make_category_outputs(expected_outputs):
+    '''Returns a tuple with the expected outputs for each feature'''
+    setosa_outputs = []
+    versicolor_outputs = []
+    virginica_outputs = []
+    outputs = (setosa_outputs, versicolor_outputs, virginica_outputs)
+    for output in expected_outputs:
+        if output[0] == 1:
+            setosa_outputs.append([1])
+            versicolor_outputs.append([0])
+            virginica_outputs.append([0])
+        elif output[1] == 1:
+            setosa_outputs.append([0])
+            versicolor_outputs.append([1])
+            virginica_outputs.append([0])
+        else:
+            setosa_outputs.append([0])
+            versicolor_outputs.append([0])
+            virginica_outputs.append([1])
+    return outputs
+
 
 def make_feature_table(weights, feature_labels):
     """Create table that holds Delta values to be used by our algorithm.
@@ -197,6 +220,60 @@ def graph_helper(table, rules, value, cur_path, max_list, min_list):
         cur_copy.append((row, i))
         graph_helper(table, rules, new_value, cur_copy, max_list, min_list)
 
+def percent_correct(output, expected_output):
+    ''' Returns the percent of outputs that are correct with the categorization'''
+    total = 0.0
+    for i in range(len(output)):
+        #.8 is arbitrary
+        point = 0
+        if output[i][0] > 0.8:
+            point = 1
+        else:
+            point = 0
+        if(point == expected_output[i][0]):
+            total += 1  
+    return (total / len(expected_output)) * 100
+
+def rule_to_string(rules):
+    '''this is some ugly code to make some pretty string'''
+    string = '('
+    for i in range(len(rules)):
+        for j in range(len(rules[i])):
+            string += "(x_" + str(rules[i][j][0]) + "=" + str(rules[i][j][1]) + ") and "
+        string = string[:-5]
+        string += ") or ("
+    string = string[:-4] 
+    return string
+
+
 def main():
-    #TODO
-    pass
+    feature_labels = [['s','m','l'],['s','m','l'],['s','m','l'],['s','m','l']]
+    categories = ['Iris-Setosa', 'Iris-Versicolor', 'Iris-Virginica']
+    print("Loading Data...")
+    data = load_data('data/iris.data')
+    print("Labeling Features...")
+    X, general_outputs = label_features(data)
+    X = np.array(X).T
+    expected_outputs = make_category_outputs(general_outputs)
+    print()
+    for i in range(len(expected_outputs)):
+        print("Starting Category: " + categories[i])
+        #Categorization
+        Y = np.array(expected_outputs[i]).T
+        print("Training Network (this will take a minute...)")
+        weights, bias = mn.train_multilayer_network(X, Y, mn.update_weights)
+        output = mn.predict_multilayer_network(X, weights, bias, mn.logistic, mn.logistic, 10).T
+        print("Percent Correct Categorization: " + str(percent_correct(output, expected_outputs[i])) + "%")
+
+        #Rule Extraction
+        print("Rule Extraction!")
+        table, labels = make_feature_table(weights[0][0], feature_labels)
+        rules = traverse_graph(table, labels)
+        print("Rules Found: " + rule_to_string(rules))
+        print()
+
+if __name__ == '__main__':
+    main()
+
+
+

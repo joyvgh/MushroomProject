@@ -154,11 +154,14 @@ def make_feature_table(weights, feature_labels):
 
     return table, new_feature_labels
 
-def traverse_graph(table, feature_labels):
+def traverse_graph(table, feature_labels, threshold, sign):
     '''
     Returns a list of rules in the following structure:
     [[(1, 'm'), (2, 's')], [(3, 'l')]] is equivalent to:
     (x_1 = m AND x_2 = s) OR (x_3 = large)
+    direction is a function that will be used to compare each node
+    to threshold. For example we want direction to be > when w1 is
+    negative and < when w1 is positive.
     '''
     rules = []
 
@@ -176,7 +179,7 @@ def traverse_graph(table, feature_labels):
         max_list[-i] += max_list[-i+1]
         min_list[-i] += min_list[-i+1]
 
-    graph_helper(table, rules, 0, [], max_list, min_list)
+    graph_helper(table, rules, 0, [], max_list, min_list, threshold, sign)
 
     #prettify rules list
     for i in range(len(rules)):
@@ -188,7 +191,7 @@ def traverse_graph(table, feature_labels):
 
 
 
-def graph_helper(table, rules, value, cur_path, max_list, min_list):
+def graph_helper(table, rules, value, cur_path, max_list, min_list, threshold, sign):
     """If, given our path, we can create a new rule, add a new rule to
         rules. Otherwise, recurse on all possible paths from current path
     """
@@ -197,19 +200,20 @@ def graph_helper(table, rules, value, cur_path, max_list, min_list):
 
     # Base Cases
     # At leaf of tree
-    if len(cur_path) >= len(table):
-        if (value >= 0):
+    if (len(cur_path) >= len(table)):
+        if (sign and value < threshold) or (not sign and value > threshold):
             return
         else:
             rules.append(cur_path)
             return
     else:
         # Can shortcut to making rule and stop searching tree
-        if (value + max_list[row] < 0):
+        if (sign and value + min_list[row] > threshold) or (not sign and value + max_list[row] < threshold):
             rules.append(cur_path)
             return
         # Can stop searching tree
-        elif (value + min_list[row] > 0):
+        elif (sign and value + max_list[row] < threshold) or (not sign and value + min_list[row] > threshold):
+
             return
         
     # Update value and cur_path for each Delta in our current row and
@@ -218,7 +222,7 @@ def graph_helper(table, rules, value, cur_path, max_list, min_list):
         new_value = value + table[row][i]
         cur_copy = cur_path[:]
         cur_copy.append((row, i))
-        graph_helper(table, rules, new_value, cur_copy, max_list, min_list)
+        graph_helper(table, rules, new_value, cur_copy, max_list, min_list, threshold, sign)
 
 def percent_correct(output, expected_output):
     ''' Returns the percent of outputs that are correct with the categorization'''
@@ -262,13 +266,22 @@ def main():
         Y = np.array(expected_outputs[i]).T
         print("Training Network (this will take a minute...)")
         weights, bias = mn.train_multilayer_network(X, Y, mn.update_weights)
+        print("weights")
+        print(weights)
+        print("bias")
+        print(bias)
         output = mn.predict_multilayer_network(X, weights, bias, mn.logistic, mn.logistic, 10).T
         print("Percent Correct Categorization: " + str(percent_correct(output, expected_outputs[i])) + "%")
 
         #Rule Extraction
         print("Rule Extraction!")
         table, labels = make_feature_table(weights[0][0], feature_labels)
-        rules = traverse_graph(table, labels)
+        
+        if weights[1][0] > 0:
+            rules = traverse_graph(table, labels, bias[0][0], True)
+        else:
+            rules = traverse_graph(table, labels, bias[0][0], False)
+
         print("Rules Found: " + rule_to_string(rules))
         print()
 

@@ -1,7 +1,9 @@
 '''
 Module for multiclass classification via multiple outputs
 Module Written by Anna Rafferty
-Addiitons Written by Joy Hill and Valerie Lambert
+Additons Written by Joy Hill and Valerie Lambert
+Most original methods are reflected in their name, 
+additions specified in comments. 
 '''
 
 import numpy as np
@@ -10,7 +12,7 @@ import math
 np.random.seed(123)
 
 def logistic(x, T):
-    """Logistic function with slope T"""
+    """Logistic function (by Anna) with slope T (by JV)"""
     return 1 /(1+np.exp(-T*x))
     
 def dlogistic(x, T):
@@ -21,22 +23,22 @@ def dlogistic(x, T):
 def propagate(x, w, b, f, T):
     """Propagate the net forward through one level, given the
         inputs (x), weights (w), bias term (b), and transfer function (f),
-        and one parameter to transfer function (T).
+        and one parameter to transfer function (T). - Anna
     """
     return f(np.dot(w, x) + b[:, None], T)
 
 def error(t, y):
     """Computes the squared error between target values (t)
-        and computed values (y).
+        and computed values (y). - Anna
         """
     return 0.5 * (t - y) ** 2
     
 def derror(target, y):
-    """Derivative of the error function."""
+    """Derivative of the error function. - Anna"""
     return target-y
 
 def our_error(weights, lambda1, lambda2):
-    """Additional error used by our training algorithm"""
+    """Additional error used by our training algorithm - JV"""
     weight_sum = 0
     for layer in weights:
         for weight in layer[0]:
@@ -49,7 +51,7 @@ def our_error(weights, lambda1, lambda2):
     return weight_sum
 
 def our_derror(target, computed, weights, lambda1, lambda2):
-    """The derivative of the additional error used by our training algorithm"""
+    """The derivative of the additional error used by our training algorithm - JV"""
     d_error = derror(target, computed)
     weight_sum = 0
     w0 = weights[0]
@@ -67,6 +69,8 @@ def update_weights(x, y, weights, bias, eta, T, lambda1, lambda2):
 
         This updates the weights in `weights` in place, and returns the
         total error of the network
+
+        Minor additions written by JV
 
         """
     (w0, w1) = weights
@@ -125,6 +129,8 @@ def train_multilayer_network(X, Y, weight_updating_function=update_weights, num_
     """Function for training a network on input X to produce output
         Y using the algorithm described in notebook. Should produce
         a network with weights of 0, -1, and 1.
+        Initialization and simple steps written by Anna. Everything 
+        else is for the rule extraction algorithm written by JV.
     """
 
     # learning rate
@@ -249,7 +255,7 @@ def predict_multilayer_network(X, weights, bias, hidden_layer_fn, output_layer_f
     """Fully propagate inputs through the entire neural network,
     given the inputs (X), a list of the weights for each level
     (weights), and a list of the bias terms for each level (bias).
-    
+    Anna.
     """
     Z = hidden_layer_fn(np.dot(weights[0], X) + bias[0][:, None], T)
     Y = output_layer_fn(np.dot(weights[1], Z) + bias[1][:, None], T)
@@ -258,7 +264,7 @@ def predict_multilayer_network(X, weights, bias, hidden_layer_fn, output_layer_f
 
 def get_confusion_matrix(network_output, desired_output):
     """Returns the confusion matrix for 3 outputs given 3 caluculated outputs and 3
-        expected outputs
+        expected outputs. Written by Valerie.
     """
     confusion_matrix = np.zeros([3,3])
     for i in range(len(network_output)):

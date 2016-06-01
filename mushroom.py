@@ -266,10 +266,6 @@ def main():
         Y = np.array(expected_outputs[i]).T
         print("Training Network (this will take a minute...)")
         weights, bias = mn.train_multilayer_network(X, Y, mn.update_weights)
-        print("weights")
-        print(weights)
-        print("bias")
-        print(bias)
         output = mn.predict_multilayer_network(X, weights, bias, mn.logistic, mn.logistic, 10).T
         print("Percent Correct Categorization: " + str(percent_correct(output, expected_outputs[i])) + "%")
 
